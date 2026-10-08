@@ -1,0 +1,38 @@
+name: ATLAS Daily Digest
+
+on:
+  schedule:
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+
+jobs:
+  run-agent:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run agent
+        env:
+          ANTHROPIC_API_KEY:    ${{ secrets.ANTHROPIC_API_KEY }}
+          GMAIL_ADDRESS:        ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD:   ${{ secrets.GMAIL_APP_PASSWORD }}
+          RECIPIENT_EMAIL:      ${{ secrets.RECIPIENT_EMAIL }}
+        run: python agent.py
+
+      - name: Commit results
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add digests/ seen_papers.json
+          git diff --cached --quiet || git commit -m "Digest ${{ github.run_number }} — $(date +%F)"
+          git push
