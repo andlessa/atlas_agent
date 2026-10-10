@@ -1,12 +1,10 @@
 from datetime import datetime
 
-import anthropic
 from scrape_atlas import fetch_new_papers, get_arxiv_pdf_text, load_seen, save_seen
 from summarize import summarize_paper
 import os, smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from datetime import datetime
 import pathlib, json
 
 def send_email(subject: str, body: str):
@@ -35,21 +33,39 @@ def run_agent():
         print("No new papers found.")
         return  # no email sent on quiet days — avoids inbox noise
 
+    papers = sorted(papers, key=lambda x: x['id'], reverse=True)
+
+    print(f"Found {len(papers)} new paper(s). Summarizing and sending email...")
     today = datetime.now().strftime("%Y-%m-%d")
     lines = [f"# ATLAS digest — {today}\n"]
+
+    processed_count = 0
+    failed_count = 0
 
     for paper in papers:
         print(f"  Processing: {paper['title']}")
         text = get_arxiv_pdf_text(paper["link"])
         if not text:
+            failed_count += 1
             continue
 
-        summary = summarize_paper(paper["title"], text)
+        try:
+            summary = summarize_paper(paper["title"], text)
+        except Exception as exc:
+            failed_count += 1
+            print(f"    Skipped (summary error): {exc}")
+            continue
+
         lines.append(f"## [{paper['group']}] {paper['title']}")
         lines.append(f"Link: {paper['link']}")
         lines.append(summary)
         lines.append("")
         seen.add(paper["id"])
+        processed_count += 1
+
+    if processed_count == 0:
+        print("No papers were summarized successfully. Skipping digest/email.")
+        return
 
     digest = "\n".join(lines)
 
@@ -61,10 +77,13 @@ def run_agent():
 
     # 2. Send email
     send_email(
-        subject=f"ATLAS digest {today} — {len(papers)} new paper(s)",
+        subject=f"ATLAS digest {today} — {processed_count} summarized paper(s)",
         body=digest,
     )
     print("Email sent.")
+
+    if failed_count:
+        print(f"Skipped {failed_count} paper(s) due to extraction/summarization errors.")
 
     save_seen(seen)
 
@@ -73,8 +92,6 @@ def run_agent():
 #schedule.every().day.at("08:00").do(run_agent)
 
 if __name__ == "__main__":
-    import os
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     run_agent()
 #    while True:
 #        schedule.run_pending()

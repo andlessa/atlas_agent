@@ -1,6 +1,12 @@
 import anthropic
+import os
 
-client = anthropic.Anthropic(api_key="YOUR_API_KEY")
+
+def _get_client() -> anthropic.Anthropic:
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise RuntimeError("ANTHROPIC_API_KEY is not set")
+    return anthropic.Anthropic(api_key=api_key)
 
 def summarize_paper(title: str, text: str) -> str:
     prompt = f"""You are a particle physics analyst. Read the following excerpt from an ATLAS paper and extract:
@@ -18,9 +24,15 @@ Final state: ...
 Models tested: ...
 Key result: ...
 """
+    client = _get_client()
     message = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=400,
         messages=[{"role": "user", "content": prompt}]
     )
-    return message.content[0].text
+    parts: list[str] = []
+    for block in message.content:
+        block_text = getattr(block, "text", None)
+        if isinstance(block_text, str) and block_text.strip():
+            parts.append(block_text.strip())
+    return "\n".join(parts)
