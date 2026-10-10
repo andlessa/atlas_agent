@@ -3,9 +3,16 @@ import os
 
 
 def _get_client() -> anthropic.Anthropic:
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    api_key = api_key.strip().strip('"').strip("'")
+    if api_key.lower().startswith("bearer "):
+        api_key = api_key[7:].strip()
     if not api_key:
         raise RuntimeError("ANTHROPIC_API_KEY is not set")
+    if not api_key.startswith("sk-ant-"):
+        raise RuntimeError(
+            "ANTHROPIC_API_KEY looks malformed. Expected it to start with 'sk-ant-'."
+        )
     return anthropic.Anthropic(api_key=api_key)
 
 def summarize_paper(title: str, text: str) -> str:

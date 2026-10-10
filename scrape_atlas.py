@@ -164,11 +164,9 @@ def fetch_new_papers(seen_ids: set) -> list[dict]:
 
     # Primary path: consume the same publication dataset as the ATLAS DataTable.
     try:
-        papers = _fetch_from_publications_api(seen_ids, groups_to_track)
-        if papers:
-            return papers
-    except requests.RequestException:
-        pass
+        return _fetch_from_publications_api(seen_ids, groups_to_track)
+    except (requests.RequestException, ValueError) as exc:
+        print(f"Publications API failed ({exc}); falling back to TWiki scan.")
 
     # Fallback path: legacy HTML scan of TWiki content.
     resp = requests.get(TWIKI_URL, timeout=30)
@@ -241,4 +239,4 @@ def load_seen() -> set:
     return set()
 
 def save_seen(seen: set):
-    STATE_FILE.write_text(json.dumps(list(seen)))
+    STATE_FILE.write_text(json.dumps(sorted(seen), indent=0))

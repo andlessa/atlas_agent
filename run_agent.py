@@ -44,7 +44,12 @@ def run_agent():
 
     for paper in papers:
         print(f"  Processing: {paper['title']}")
-        text = get_arxiv_pdf_text(paper["link"])
+        try:
+            text = get_arxiv_pdf_text(paper["link"])
+        except Exception as exc:
+            failed_count += 1
+            print(f"    Skipped (PDF error): {exc}")
+            continue
         if not text:
             failed_count += 1
             continue
