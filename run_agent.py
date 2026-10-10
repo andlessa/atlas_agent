@@ -10,7 +10,7 @@ import pathlib, json
 def send_email(subject: str, body: str):
     sender   = os.environ["GMAIL_ADDRESS"]
     password = os.environ["GMAIL_APP_PASSWORD"]
-    recipient = os.environ.get("RECIPIENT_EMAIL", sender)  # defaults to sending to yourself
+    recipient = os.environ.get("RECIPIENT_EMAIL", "").strip() or sender  # unset secrets arrive as ""; default to yourself
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
